@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="horizontal"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    android:weightSum="1"
+    android:gravity="center|left"
+    android:padding="6dp">
+
+    <ImageView
+        android:id="@+id/user_status"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:src="@drawable/fork"
+        android:adjustViewBounds="false"
+        android:layout_weight="0.2" />
+
+    <TextView
+        android:id="@+id/user_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="NAME"
+        android:textSize="21dp"
+        android:layout_gravity="center_vertical"
+        android:layout_marginLeft="20dp"
+        android:layout_centerVertical="true"
+        android:layout_toRightOf="@+id/user_status"
+        android:textColor="@color/dark_primary" />
+
+    <TextView
+        android:id="@+id/user_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="TIME"
+        android:textSize="17dp"
+        android:layout_gravity="center_vertical"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentEnd="false"
+        android:layout_centerVertical="true"
+        android:layout_marginRight="20dp" />
+</RelativeLayout>
