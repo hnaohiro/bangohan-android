@@ -3,5 +3,6 @@
 
     <string name="app_name">Bangohan</string>
     <string name="server_url">http://bangohan.herokuapp.com</string>
+    <string name="gcm_project_number">958638084537</string>
 
 </resources>
