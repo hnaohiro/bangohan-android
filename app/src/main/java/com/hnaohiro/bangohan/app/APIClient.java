@@ -25,6 +25,7 @@ import org.apache.http.protocol.HTTP;
 
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.io.ByteArrayOutputStream;
@@ -58,7 +59,20 @@ public class APIClient {
         task.execute("PUT", server_url + "/users/" + id + ".json", params, "Processing...");
     }
 
-    private String request(String method, String url, Map<String, String> params) throws IOException, MethodNotSupportedException {
+    public String register(int userId, String token) {
+        Map<String, String> params = new HashMap<String, String>();
+        params.put("user_id", Integer.toString(userId));
+        params.put("platform_application_arn", activity.getString(R.string.arn));
+        params.put("token", token);
+
+        try {
+            return request("POST", server_url + "/devices/register.json", params);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public String request(String method, String url, Map<String, String> params) throws IOException, MethodNotSupportedException {
         String result = null;
         HttpClient httpClient = new DefaultHttpClient();
         HttpRequestBase httpRequest = createHttpRequest(method, url, params);
@@ -113,23 +127,6 @@ public class APIClient {
         return list;
     }
 
-//    private long getLastGetDate() {
-//        Context context = activity.getBaseContext();
-//        SharedPreferences pref = context.getSharedPreferences("Bangohan", Context.MODE_PRIVATE);
-//        return pref.getLong("last_get_date", 0);
-//    }
-//
-//    private void updateLastGetDate() {
-//        Context context = activity.getBaseContext();
-//        SharedPreferences pref = context.getSharedPreferences("Bangohan", Context.MODE_PRIVATE);
-//
-//        SharedPreferences.Editor editor = pref.edit();
-//        editor.putLong("last_get_date", System.currentTimeMillis());
-//
-//        editor.commit();
-//    }
-
-
     public class APIAsyncTask extends AsyncTask<Void, Void, Result> {
 
         private ProgressDialog dialog;
@@ -139,6 +136,10 @@ public class APIClient {
         private String url;
         private Map<String, String> params;
         private String progressMessage = "Loading...";
+
+        public APIAsyncTask(Activity activity) {
+            this(activity, null);
+        }
 
         public APIAsyncTask(Activity activity, APIActionListener listener) {
             this.dialog = new ProgressDialog(activity);
@@ -150,10 +151,7 @@ public class APIClient {
         }
 
         public void execute(String method, String url, Map<String, String> params) {
-            this.method = method;
-            this.url = url;
-            this.params = params;
-            super.execute();
+            execute(method, url, params, null);
         }
 
         public void execute(String method, String url, Map<String, String> params, String progressMessage) {
@@ -166,8 +164,10 @@ public class APIClient {
 
         @Override
         protected void onPreExecute() {
-            dialog.setMessage(progressMessage);
-            dialog.show();
+            if (progressMessage != null) {
+                dialog.setMessage(progressMessage);
+                dialog.show();
+            }
         }
 
         @Override
@@ -187,12 +187,16 @@ public class APIClient {
 
         @Override
         protected void onPostExecute(Result result) {
-            closeDialog();
+            if (progressMessage != null) {
+                closeDialog();
+            }
 
-            if (result.succeed) {
-                listener.onSuccess(result.content);
-            } else {
-                listener.onError(result.errorMessage);
+            if (listener != null) {
+                if (result.succeed) {
+                    listener.onSuccess(result.content);
+                } else {
+                    listener.onError(result.errorMessage);
+                }
             }
         }
 

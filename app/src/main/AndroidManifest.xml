@@ -2,7 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.hnaohiro.bangohan.app" >
 
-    <uses-sdk android:minSdkVersion="14" android:targetSdkVersion="19"/>
+    <uses-sdk
+        android:minSdkVersion="14"
+        android:targetSdkVersion="19" />
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.GET_ACCOUNTS" />
@@ -10,8 +12,10 @@
     <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE" />
     <uses-permission android:name="com.google.android.c2dm.permission.REGISTER" />
 
-    <permission android:name="com.hnaohiro.bangohan.app.permission.C2D_MESSAGE"
+    <permission
+        android:name="com.hnaohiro.bangohan.app.permission.C2D_MESSAGE"
         android:protectionLevel="signature" />
+
     <uses-permission android:name="com.hnaohiro.bangohan.app.permission.C2D_MESSAGE" />
 
     <application
@@ -20,8 +24,23 @@
         android:label="@string/app_name"
         android:theme="@style/AppTheme" >
 
+        <service android:name=".RemindService"></service>
+
+        <receiver
+            android:name=".GcmBroadcastReceiver"
+            android:permission="com.google.android.c2dm.permission.SEND" >
+            <intent-filter>
+                <action android:name="com.google.android.c2dm.intent.RECEIVE" />
+                <action android:name="com.google.android.c2dm.intent.REGISTRATION" />
+
+                <category android:name="com.hnaohiro.bangohan.app" />
+            </intent-filter>
+        </receiver>
+
+        <service android:name=".GcmIntentService" />
+
         <activity
-            android:name="com.hnaohiro.bangohan.app.MainActivity"
+            android:name=".MainActivity"
             android:label="@string/app_name"
             android:uiOptions="splitActionBarWhenNarrow" >
             <intent-filter>
@@ -31,23 +50,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
         <activity
-            android:name="com.hnaohiro.bangohan.app.SetActivity"
+            android:name=".SetActivity"
             android:label="@string/app_name"
             android:uiOptions="splitActionBarWhenNarrow" >
         </activity>
 
-        <receiver
-            android:name=".GcmBroadcastReceiver"
-            android:permission="com.google.android.c2dm.permission.SEND" >
-            <intent-filter>
-                <action android:name="com.google.android.c2dm.intent.RECEIVE" />
-                <action android:name="com.google.android.c2dm.intent.REGISTRATION" />
-                <category android:name="com.hnaohiro.bangohan.app" />
-            </intent-filter>
-        </receiver>
-        <service android:name=".GcmIntentService" />
+        <activity
+            android:name=".ConfigActivity"
+            android:label="@string/app_name"
+            android:uiOptions="splitActionBarWhenNarrow" >
+        </activity>
+
     </application>
 
 </manifest>

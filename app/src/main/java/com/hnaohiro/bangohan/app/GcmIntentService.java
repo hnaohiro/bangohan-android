@@ -11,15 +11,16 @@ import android.util.Log;
 
 import com.google.android.gms.gcm.GoogleCloudMessaging;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 /**
  * Created by hnaohiro on 2014/05/19.
  */
 public class GcmIntentService extends IntentService {
 
-    private static final String TAG = "GcmIntentService";
-
     public GcmIntentService() {
-        super("GcmIntentService");
+        super("Bangohan");
     }
 
     @Override
@@ -29,16 +30,14 @@ public class GcmIntentService extends IntentService {
         String messageType = gcm.getMessageType(intent);
 
         if (!extras.isEmpty()) {
-            if (GoogleCloudMessaging.MESSAGE_TYPE_SEND_ERROR.equals(messageType)) {
-                Log.d(TAG, "messageType: " + messageType + ",body:" + extras.toString());
-            } else if (GoogleCloudMessaging.MESSAGE_TYPE_DELETED.equals(messageType)) {
-                Log.d(TAG, "messageType: " + messageType + ",body:" + extras.toString());
-            } else if (GoogleCloudMessaging.MESSAGE_TYPE_MESSAGE.equals(messageType)) {
-                Log.d(TAG, "messageType: " + messageType + ",body:" + extras.toString());
-                // Notificationで通知
-                sendNotification(extras.getString("default"));
+            if (GoogleCloudMessaging.MESSAGE_TYPE_MESSAGE.equals(messageType)) {
+                try {
+                    String message = createMessage(extras.getString("default"));
+                    sendNotification(message);
+                } catch (JSONException e) {}
             }
         }
+
         GcmBroadcastReceiver.completeWakefulIntent(intent);
     }
 
@@ -49,14 +48,29 @@ public class GcmIntentService extends IntentService {
         PendingIntent contentIntent =
                 PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), 0);
 
-        NotificationCompat.Builder mBuilder =
+        NotificationCompat.Builder builder =
                 new NotificationCompat.Builder(this)
                         .setSmallIcon(R.drawable.ic_launcher)
-                        .setContentTitle("GCM Notification")
+                        .setContentTitle(getString(R.string.app_name))
+                        .setAutoCancel(true)
                         .setStyle(new NotificationCompat.BigTextStyle().bigText(message))
                         .setContentText(message);
 
-        mBuilder.setContentIntent(contentIntent);
-        manager.notify(0, mBuilder.build());
+        builder.setContentIntent(contentIntent);
+        manager.notify(0, builder.build());
+    }
+
+    private String createMessage(String json) throws JSONException {
+        UserData userData = UserData.fromJSONObject(new JSONObject(json));
+
+        if (!userData.isDefined()) {
+            return userData.getName() + "が未定に変更しました。";
+        } else {
+            if (userData.isNeed()) {
+                return userData.getName() + "は" + userData.getTime() + "に晩ご飯をたべます。";
+            } else {
+                return userData.getName() + "は今日はいりません。";
+            }
+        }
     }
 }

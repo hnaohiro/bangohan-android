@@ -1,6 +1,8 @@
 package com.hnaohiro.bangohan.app;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.Menu;
@@ -46,13 +48,26 @@ public class SetActivity extends Activity {
             }
         });
 
-        getUser(1);
+        fetchUser();
     }
 
-    private void getUser(int id) {
-        new APIClient(this).getUser(1, new APIClient.APIActionListener() {
+    private void fetchUser() {
+        final Config config = new Config(this);
+
+        int id = config.getUserId();
+        if (id == 0) {
+            config.alertNoConfig("Userを設定してください。");
+            return;
+        }
+
+        new APIClient(this).getUser(id, new APIClient.APIActionListener() {
             @Override
             public void onSuccess(String content) {
+                if (config == null) {
+                    Toast.makeText(SetActivity.this, "Failed to get User!", 10000).show();
+                    return;
+                }
+
                 try {
                     JSONObject json = new JSONObject(content);
                     setUser(json);
@@ -147,13 +162,16 @@ public class SetActivity extends Activity {
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.menu_list:
-                Intent intent = new Intent(this, MainActivity.class);
-                intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                startActivity(intent);
+                Intent mainActivityIntent = new Intent(this, MainActivity.class);
+                mainActivityIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                startActivity(mainActivityIntent);
                 break;
             case R.id.menu_set:
                 break;
             case R.id.menu_config:
+                Intent configActivityIntent = new Intent(this, ConfigActivity.class);
+                configActivityIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                startActivity(configActivityIntent);
                 break;
         }
 

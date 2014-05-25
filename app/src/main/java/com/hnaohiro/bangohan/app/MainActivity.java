@@ -1,13 +1,23 @@
 package com.hnaohiro.bangohan.app;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
+import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
+import android.widget.ImageView;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.cengalabs.flatui.FlatUI;
@@ -30,26 +40,29 @@ public class MainActivity extends Activity {
         FlatUI.setDefaultTheme(FlatUI.DEEP);
         getActionBar().setBackgroundDrawable(FlatUI.getActionBarDrawable(this, FlatUI.DEEP, true));
 
+        startRemindService();
         registerInBackground();
     }
 
-    private String gcmRegistrationId = "";
+    private void startRemindService() {
+        Intent intent = new Intent(this, RemindService.class);
+        startService(intent);
+    }
+
+    private String registrationId = "";
 
     private void registerInBackground() {
         new AsyncTask<Void, Void, Void>() {
             @Override
             protected Void doInBackground(Void... params) {
-                if (!gcmRegistrationId.isEmpty()) {
-                    return null;
-                }
-
                 try {
                     GoogleCloudMessaging gcm = GoogleCloudMessaging.getInstance(MainActivity.this);
-
                     String projectId = getString(R.string.gcm_project_number);
-                    gcmRegistrationId = gcm.register(projectId);
+                    registrationId = gcm.register(projectId);
 
-                    Log.d("Bangohan", "Device registered, registration ID=" + gcmRegistrationId);
+                    sendRegistrationId(registrationId);
+
+                    Log.d("Bangohan", "Device registered, registration ID=" + registrationId);
                 } catch (IOException e) {
                     Log.e("Bangohan", "Error: " + e.getMessage());
                 }
@@ -63,22 +76,34 @@ public class MainActivity extends Activity {
     public void onStart() {
         super.onStart();
 
-        new APIClient(this).getUsers(new APIClient.APIActionListener() {
-             @Override
-             public void onSuccess(String content) {
-                 try {
-                     JSONArray json = new JSONArray(content);
-                     setUsers(json);
-                 } catch (JSONException e) {
-                     Toast.makeText(MainActivity.this, e.getMessage(), 10000).show();
-                 }
-             }
+        fetchUsers();
+    }
 
-             @Override
-             public void onError(String message) {
-                 Toast.makeText(MainActivity.this, message, 10000).show();
-             }
+    private void fetchUsers() {
+        new APIClient(this).getUsers(new APIClient.APIActionListener() {
+            @Override
+            public void onSuccess(String content) {
+                try {
+                    JSONArray json = new JSONArray(content);
+                    setUsers(json);
+                } catch (JSONException e) {
+                    Toast.makeText(MainActivity.this, e.getMessage(), 10000).show();
+                }
+            }
+
+            @Override
+            public void onError(String message) {
+                Toast.makeText(MainActivity.this, message, 10000).show();
+            }
         });
+    }
+
+    private void sendRegistrationId(String registrationId) {
+        Config config = new Config(this);
+        int userId = config.getUserId();
+        if (userId != -1) {
+            new APIClient(MainActivity.this).register(userId, registrationId);
+        }
     }
 
     @Override
@@ -95,11 +120,14 @@ public class MainActivity extends Activity {
                 onStart();
                 break;
             case R.id.menu_set:
-                Intent intent = new Intent(this, SetActivity.class);
-                intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                startActivity(intent);
+                Intent setActivityIntent = new Intent(this, SetActivity.class);
+                setActivityIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                startActivity(setActivityIntent);
                 break;
             case R.id.menu_config:
+                Intent configActivityIntent = new Intent(this, ConfigActivity.class);
+                configActivityIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                startActivity(configActivityIntent);
                 break;
         }
 
@@ -109,6 +137,61 @@ public class MainActivity extends Activity {
     private void setUsers(JSONArray json) throws JSONException {
         List<UserData> users = UserData.fromJSONObject(json);
         ListView listView = (ListView) findViewById(R.id.user_list);
-        listView.setAdapter(new UsersAdaptor(this, 0, users));
+        listView.setAdapter(new UserDataAdaptor(this, 0, users));
+    }
+
+    private class UserDataAdaptor extends ArrayAdapter<UserData> {
+
+        private LayoutInflater layoutInflater;
+        private Resources resources;
+
+        public UserDataAdaptor(Context context, int textViewResourceId, List<UserData> objects) {
+            super(context, textViewResourceId, objects);
+
+            layoutInflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+            resources = layoutInflater.getContext().getResources();
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            UserData user = getItem(position);
+
+            if (convertView == null) {
+                convertView = layoutInflater.inflate(R.layout.list_item, null);
+            }
+
+            Bitmap statusImage;
+            String userTime;
+            int textColor;
+
+            if (user.isDefined()) {
+                if (user.isNeed()) {
+                    userTime = user.getTime();
+                    statusImage = BitmapFactory.decodeResource(resources, R.drawable.fork);
+                    textColor = resources.getColor(R.color.sky_primary);
+                } else {
+                    userTime = "";
+                    statusImage = BitmapFactory.decodeResource(resources, R.drawable.remove);
+                    textColor = resources.getColor(R.color.candy_primary);
+                }
+            } else {
+                userTime = "";
+                statusImage = BitmapFactory.decodeResource(resources, R.drawable.question);
+                textColor = resources.getColor(R.color.dark_light);
+            }
+
+            ImageView userStatusImageView = (ImageView) convertView.findViewById(R.id.user_status);
+            userStatusImageView.setImageBitmap(statusImage);
+
+            TextView userTimeTextView = (TextView) convertView.findViewById(R.id.user_time);
+            userTimeTextView.setTextColor(textColor);
+            userTimeTextView.setText(userTime);
+
+            TextView userNameTextView = (TextView) convertView.findViewById(R.id.user_name);
+            userNameTextView.setTextColor(textColor);
+            userNameTextView.setText(user.getName());
+
+            return convertView;
+        }
     }
 }
