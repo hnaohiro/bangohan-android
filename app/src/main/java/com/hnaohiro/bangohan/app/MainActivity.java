@@ -28,6 +28,7 @@ import org.json.JSONException;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 
 public class MainActivity extends Activity {
 
@@ -49,60 +50,74 @@ public class MainActivity extends Activity {
         startService(intent);
     }
 
-    private String registrationId = "";
-
     private void registerInBackground() {
-        new AsyncTask<Void, Void, Void>() {
+        new APIAsyncTask(new APIAsyncTaskActionListener() {
             @Override
-            protected Void doInBackground(Void... params) {
-                try {
-                    GoogleCloudMessaging gcm = GoogleCloudMessaging.getInstance(MainActivity.this);
-                    String projectId = getString(R.string.gcm_project_number);
-                    registrationId = gcm.register(projectId);
-
-                    sendRegistrationId(registrationId);
-
-                    Log.d("Bangohan", "Device registered, registration ID=" + registrationId);
-                } catch (IOException e) {
-                    Log.e("Bangohan", "Error: " + e.getMessage());
-                }
-
+            public Object doTask() {
+                sendRegistrationId();
                 return null;
             }
-        }.execute(null, null, null);
+            @Override
+            public void onComplete(Object result) {}
+        }).execute();
     }
 
     @Override
     public void onStart() {
         super.onStart();
-
         fetchUsers();
     }
 
     private void fetchUsers() {
-        new APIClient(this).getUsers(new APIClient.APIActionListener() {
+        new APIAsyncTask(this, "Loading...", new APIAsyncTaskActionListener() {
             @Override
-            public void onSuccess(String content) {
+            public Object doTask() {
                 try {
-                    JSONArray json = new JSONArray(content);
-                    setUsers(json);
-                } catch (JSONException e) {
-                    Toast.makeText(MainActivity.this, e.getMessage(), 10000).show();
+                    return APIClient.getUsers();
+                } catch (Exception e) {
+                    Log.e(getString(R.string.app_name), e.getMessage());
+                    return null;
                 }
             }
 
             @Override
-            public void onError(String message) {
-                Toast.makeText(MainActivity.this, message, 10000).show();
+            public void onComplete(Object result) {
+                if (result != null) {
+                    List<UserData> users = (List<UserData>) result;
+                    ListView listView = (ListView) findViewById(R.id.user_list);
+                    listView.setAdapter(new UserDataAdaptor(MainActivity.this, 0, users));
+                }
             }
-        });
+        }).execute();
     }
 
-    private void sendRegistrationId(String registrationId) {
+    private String registrationId = "";
+
+    private void sendRegistrationId() {
+        if (!registrationId.isEmpty()) {
+            return;
+        }
+
+        GoogleCloudMessaging gcm = GoogleCloudMessaging.getInstance(MainActivity.this);
+        String projectId = getString(R.string.gcm_project_number);
+
+        try {
+            registrationId = gcm.register(projectId);
+            Log.d(getString(R.string.app_name), "Device registered, registration ID=" + registrationId);
+        } catch (IOException e) {
+            Log.e(getString(R.string.app_name), "Error: " + e.getMessage());
+        }
+
         Config config = new Config(this);
         int userId = config.getUserId();
         if (userId != -1) {
-            new APIClient(MainActivity.this).register(userId, registrationId);
+            String arn = getString(R.string.arn);
+
+            try {
+                APIClient.register(userId, arn, registrationId);
+            } catch (Exception e) {
+                Log.e(getString(R.string.app_name), "Error: " + e.getMessage());
+            }
         }
     }
 
@@ -132,12 +147,6 @@ public class MainActivity extends Activity {
         }
 
         return super.onOptionsItemSelected(item);
-    }
-
-    private void setUsers(JSONArray json) throws JSONException {
-        List<UserData> users = UserData.fromJSONObject(json);
-        ListView listView = (ListView) findViewById(R.id.user_list);
-        listView.setAdapter(new UserDataAdaptor(this, 0, users));
     }
 
     private class UserDataAdaptor extends ArrayAdapter<UserData> {

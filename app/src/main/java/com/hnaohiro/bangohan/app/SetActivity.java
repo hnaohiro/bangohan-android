@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -17,8 +18,10 @@ import com.cengalabs.flatui.FlatUI;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 
 public class SetActivity extends Activity {
@@ -48,44 +51,42 @@ public class SetActivity extends Activity {
             }
         });
 
+        setUserId();
         fetchUser();
     }
 
-    private void fetchUser() {
-        final Config config = new Config(this);
+    private int userId;
 
-        int id = config.getUserId();
-        if (id == 0) {
+    private void setUserId() {
+        Config config = new Config(this);
+        userId = config.getUserId();
+        if (userId == -1) {
             config.alertNoConfig("Userを設定してください。");
-            return;
         }
-
-        new APIClient(this).getUser(id, new APIClient.APIActionListener() {
-            @Override
-            public void onSuccess(String content) {
-                if (config == null) {
-                    Toast.makeText(SetActivity.this, "Failed to get User!", 10000).show();
-                    return;
-                }
-
-                try {
-                    JSONObject json = new JSONObject(content);
-                    setUser(json);
-                } catch (JSONException e) {
-                    Toast.makeText(SetActivity.this, e.getMessage(), 10000).show();
-                }
-            }
-
-            @Override
-            public void onError(String message) {
-                Toast.makeText(SetActivity.this, message, 10000).show();
-            }
-        });
     }
 
-    private void setUser(JSONObject json) throws JSONException {
-        UserData user = UserData.fromJSONObject(json);
+    private void fetchUser() {
+        new APIAsyncTask(this, "Loading...", new APIAsyncTaskActionListener() {
+            @Override
+            public Object doTask() {
+                try {
+                    return APIClient.getUser(userId);
+                } catch (Exception e) {
+                    Log.e(getString(R.string.app_name), e.getMessage());
+                    return null;
+                }
+            }
+            @Override
+            public void onComplete(Object result) {
+                if (result != null) {
+                    UserData user = (UserData) result;
+                    setUser(user);
+                }
+            }
+        }).execute();
+    }
 
+    private void setUser(UserData user) {
         if (user.isDefined()) {
             Spinner hourSpinner = (Spinner) findViewById(R.id.hour_spinner);
             hourSpinner.setSelection(user.getHour() - 17);
@@ -99,41 +100,46 @@ public class SetActivity extends Activity {
     }
 
     private void onSubmitButtonClick() {
-        Map<String, String> userData = getUserData();
-        userData.put("defined", "true");
-
-        new APIClient(this).updateUser(1, userData, new APIClient.APIActionListener() {
-            @Override
-            public void onSuccess(String result) {
-                Intent intent = new Intent(SetActivity.this, MainActivity.class);
-                intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                startActivity(intent);
-            }
-
-            @Override
-            public void onError(String message) {
-                Toast.makeText(SetActivity.this, message, 10000).show();
-            }
-        });
+        submit(true);
     }
 
     private void onClearButtonClick() {
-        Map<String, String> userData = new HashMap<String, String>();
-        userData.put("defined", "false");
+        submit(false);
+    }
 
-        new APIClient(this).updateUser(1, userData, new APIClient.APIActionListener() {
+    private void submit(final boolean defined) {
+        new APIAsyncTask(this, "Processing...", new APIAsyncTaskActionListener() {
             @Override
-            public void onSuccess(String result) {
-                Intent intent = new Intent(SetActivity.this, MainActivity.class);
-                intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                startActivity(intent);
-            }
+            public Object doTask() {
+                Map<String, String> userData = getUserData();
+                userData.put("defined", Boolean.toString(defined));
 
-            @Override
-            public void onError(String message) {
-                Toast.makeText(SetActivity.this, message, 10000).show();
+                try {
+                    boolean result = APIClient.updateUser(userId, userData);
+                    if (result) {
+                        return true;
+                    } else {
+                        Log.e(getString(R.string.app_name), "Failed to submit!");
+                    }
+                } catch (Exception e) {
+                    Log.e(getString(R.string.app_name), e.getMessage());
+                }
+
+                return false;
             }
-        });
+            @Override
+            public void onComplete(Object result) {
+                if ((Boolean) result) {
+                    moveToTop();
+                }
+            }
+        }).execute();
+    }
+
+    private void moveToTop() {
+        Intent intent = new Intent(SetActivity.this, MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        startActivity(intent);
     }
 
     private Map<String, String> getUserData() {

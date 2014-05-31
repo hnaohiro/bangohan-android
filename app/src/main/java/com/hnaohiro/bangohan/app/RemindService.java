@@ -22,7 +22,7 @@ public class RemindService extends IntentService {
 
     @Override
     protected void onHandleIntent(Intent intent) {
-        int sleepTime = 10 * 1000;
+        int sleepTime = 5 * 60 * 1000;
         Config config = new Config(this);
 
         while (true) {
