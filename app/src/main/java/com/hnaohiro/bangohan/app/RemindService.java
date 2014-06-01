@@ -22,34 +22,24 @@ public class RemindService extends IntentService {
 
     @Override
     protected void onHandleIntent(Intent intent) {
-        int sleepTime = 5 * 60 * 1000;
+        Config config = new Config(this);
+        int sleepTime = 45 * 1000;
 
         while (true) {
+            int currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
+            int currentMin = Calendar.getInstance().get(Calendar.MINUTE);
+
             synchronized (this) {
+                if (config.getHour() == currentHour && config.getMin() >= currentMin) {
+                    sendNotification("何時に晩ご飯を食べますか？");
+                }
+
                 try {
-                    if (isReminderTime()) {
-                        sendNotification("何時に晩ご飯を食べますか？");
-                    }
                     wait(sleepTime);
                 } catch (Exception e) {
                 }
             }
         }
-    }
-
-    private boolean isReminderTime() {
-        Config config = new Config(this);
-
-        int currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
-        int currentMin = Calendar.getInstance().get(Calendar.MINUTE);
-
-        if (config.getHour() > currentHour) {
-            return true;
-        } else if (config.getHour() == currentHour && config.getMin() >= currentMin) {
-            return true;
-        }
-
-        return false;
     }
 
     private void sendNotification(String message) {
