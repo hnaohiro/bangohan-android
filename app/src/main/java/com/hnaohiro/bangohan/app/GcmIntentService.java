@@ -31,10 +31,8 @@ public class GcmIntentService extends IntentService {
 
         if (!extras.isEmpty()) {
             if (GoogleCloudMessaging.MESSAGE_TYPE_MESSAGE.equals(messageType)) {
-                try {
-                    String message = createMessage(extras.getString("default"));
-                    sendNotification(message);
-                } catch (JSONException e) {}
+                String message = extras.getString("default");
+                sendNotification(message);
             }
         }
 
@@ -58,19 +56,5 @@ public class GcmIntentService extends IntentService {
 
         builder.setContentIntent(contentIntent);
         manager.notify(0, builder.build());
-    }
-
-    private String createMessage(String json) throws JSONException {
-        UserData userData = UserData.fromJSONObject(new JSONObject(json));
-
-        if (!userData.isDefined()) {
-            return userData.getName() + "が未定に変更しました。";
-        } else {
-            if (userData.isNeed()) {
-                return userData.getName() + "は" + userData.getTime() + "に晩ご飯をたべます。";
-            } else {
-                return userData.getName() + "は今日はいりません。";
-            }
-        }
     }
 }
